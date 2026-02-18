@@ -16,6 +16,23 @@ import Pagination from './components/Pagination';
 type View = 'home' | 'game-details' | 'all-games' | 'all-giveaways';
 
 /**
+ * A reusable component to display an error message with an optional retry button.
+ */
+const ErrorMessage: React.FC<{ message: string; onRetry?: () => void }> = ({ message, onRetry }) => (
+    <div className="text-center py-10 px-4 bg-red-900/20 border border-red-500/30 rounded-lg">
+        <p className="text-red-400 mb-4">{message}</p>
+        {onRetry && (
+            <button
+                onClick={onRetry}
+                className="bg-cyan-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-cyan-600 transition-colors duration-300"
+            >
+                Retry
+            </button>
+        )}
+    </div>
+);
+
+/**
  * The root component of the GameForge application.
  * It manages the current view and navigation state.
  */
@@ -100,10 +117,12 @@ const HomePage: React.FC<HomePageProps> = ({ onSelectGame, setView }) => {
     const [games, setGames] = useState<Game[]>([]);
     const [giveaways, setGiveaways] = useState<Giveaway[]>([]);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
         const fetchHomePageData = async () => {
             setLoading(true);
+            setError(null);
             try {
                 const [gamesData, giveawaysData] = await Promise.all([
                     getGames({ 'sort-by': 'popularity' }),
@@ -113,6 +132,7 @@ const HomePage: React.FC<HomePageProps> = ({ onSelectGame, setView }) => {
                 setGiveaways(giveawaysData.slice(0, 10));
             } catch (error) {
                 console.error("Error fetching homepage data:", error);
+                setError("Failed to load homepage data. Please try refreshing the page.");
             } finally {
                 setLoading(false);
             }
@@ -122,6 +142,8 @@ const HomePage: React.FC<HomePageProps> = ({ onSelectGame, setView }) => {
     }, []);
 
     if (loading) return <Loading />;
+    if (error) return <ErrorMessage message={error} />;
+
 
     return (
         <>
@@ -160,10 +182,12 @@ const GameListView: React.FC<{ onSelectGame: (id: number) => void }> = ({ onSele
     const [category, setCategory] = useState<string | undefined>(undefined);
     const [sortBy, setSortBy] = useState('relevance');
     const [currentPage, setCurrentPage] = useState(1);
+    const [error, setError] = useState<string | null>(null);
     const gamesPerPage = 12;
 
     const fetchGamesData = useCallback(async () => {
         setLoading(true);
+        setError(null);
         try {
             const params: { [key: string]: string } = { 'sort-by': sortBy };
             if (platform !== 'all') params.platform = platform;
@@ -175,6 +199,7 @@ const GameListView: React.FC<{ onSelectGame: (id: number) => void }> = ({ onSele
         } catch (error) {
             console.error("Error fetching games:", error);
             setAllGames([]);
+            setError("Failed to load games. The API might be down or your connection is unstable.");
         } finally {
             setLoading(false);
         }
@@ -212,13 +237,15 @@ const GameListView: React.FC<{ onSelectGame: (id: number) => void }> = ({ onSele
                     <option value="alphabetical">Alphabetical</option>
                 </select>
             </div>
-            {loading ? <Loading /> : (
+            {loading ? <Loading /> : error ? (
+                <ErrorMessage message={error} onRetry={fetchGamesData} />
+            ) : (
                 <>
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
                         {currentGames.length > 0 ? currentGames.map(game => (
                             <GameCard key={game.id} game={game} onSelectGame={onSelectGame} />
                         )) : (
-                            <p className="col-span-full text-center text-gray-400">No games found with the selected filters.</p>
+                            <p className="col-span-full text-center text-gray-400 py-10">No games found with the selected filters.</p>
                         )}
                     </div>
                     <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
@@ -234,26 +261,32 @@ const GameListView: React.FC<{ onSelectGame: (id: number) => void }> = ({ onSele
 const GiveawayListView: React.FC = () => {
     const [giveaways, setGiveaways] = useState<Giveaway[]>([]);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+
+    const fetchGiveaways = useCallback(async () => {
+        setLoading(true);
+        setError(null);
+        try {
+            const giveawaysData = await getGiveaways();
+            setGiveaways(giveawaysData);
+        } catch (error) {
+            console.error("Error fetching giveaways:", error);
+            setError("Failed to load giveaways. The API might be down or your connection is unstable.");
+        } finally {
+            setLoading(false);
+        }
+    }, []);
 
     useEffect(() => {
-        const fetchGiveaways = async () => {
-            setLoading(true);
-            try {
-                const giveawaysData = await getGiveaways();
-                setGiveaways(giveawaysData);
-            } catch (error) {
-                console.error("Error fetching giveaways:", error);
-            } finally {
-                setLoading(false);
-            }
-        };
         fetchGiveaways();
-    }, []);
+    }, [fetchGiveaways]);
 
     return (
         <div>
             <h1 className="text-4xl font-bold mb-8 text-cyan-400">Current Giveaways</h1>
-            {loading ? <Loading /> : (
+            {loading ? <Loading /> : error ? (
+                <ErrorMessage message={error} onRetry={fetchGiveaways} />
+            ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {giveaways.map(giveaway => (
                          <div key={giveaway.id} className="bg-gray-800 rounded-lg overflow-hidden shadow-lg hover:ring-2 hover:ring-cyan-500 transition-all duration-300 flex flex-col">

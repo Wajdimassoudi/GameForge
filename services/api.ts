@@ -10,7 +10,7 @@ const GAMERPOWER_API_BASE = 'https://www.gamerpower.com/api';
  * NOTE: For a production application, it is highly recommended to build your own server-side proxy
  * for better performance, security, and to avoid reliance on third-party services.
  */
-const PROXY_URL = 'https://api.allorigins.win/raw?url=';
+const PROXY_URL = 'https://corsproxy.io/?';
 
 
 /**
@@ -21,8 +21,8 @@ const PROXY_URL = 'https://api.allorigins.win/raw?url=';
  */
 const fetchData = async <T,>(url: string): Promise<T> => {
     try {
-        // We must encode the target URL for the proxy to work correctly.
-        const response = await fetch(`${PROXY_URL}${encodeURIComponent(url)}`);
+        // This proxy works by simply prepending its URL to the target URL.
+        const response = await fetch(`${PROXY_URL}${url}`);
         
         if (!response.ok) {
             // If the proxy or the API server returns an error, we throw an error.
