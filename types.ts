@@ -49,9 +49,37 @@ export interface Giveaway {
     published_date: string;
     type: string;
     platforms: string;
+
     end_date: string;
     users: number;
     status: string;
     gamerpower_url: string;
     open_giveaway: string;
+}
+
+/**
+ * Represents an open-source mobile game repository from the GitHub API.
+ */
+export interface MobileGame {
+    id: number;
+    name: string;
+    full_name: string;
+    owner: {
+      login: string;
+      avatar_url: string;
+    };
+    html_url: string;
+    description: string;
+    stargazers_count: number;
+    language: string;
+    topics: string[];
+}
+  
+/**
+ * Represents the structure of the response from the GitHub API's repository search endpoint.
+ */
+export interface GithubSearchResponse {
+    total_count: number;
+    incomplete_results: boolean;
+    items: MobileGame[];
 }

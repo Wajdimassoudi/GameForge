@@ -3,7 +3,7 @@ import React from 'react';
 
 interface HeaderProps {
     /** Function to change the main view of the application. */
-    setView: (view: 'home' | 'all-games' | 'all-giveaways') => void;
+    setView: (view: 'home' | 'all-games' | 'all-giveaways' | 'mobile-games') => void;
 }
 
 /**
@@ -23,7 +23,8 @@ const Header: React.FC<HeaderProps> = ({ setView }) => {
                 </div>
                 <nav className="hidden md:flex space-x-6">
                     <button onClick={() => setView('home')} className="text-gray-300 hover:text-cyan-400 transition-colors duration-300 font-semibold">Home</button>
-                    <button onClick={() => setView('all-games')} className="text-gray-300 hover:text-cyan-400 transition-colors duration-300 font-semibold">Free-to-Play Games</button>
+                    <button onClick={() => setView('all-games')} className="text-gray-300 hover:text-cyan-400 transition-colors duration-300 font-semibold">PC & Browser Games</button>
+                    <button onClick={() => setView('mobile-games')} className="text-gray-300 hover:text-cyan-400 transition-colors duration-300 font-semibold">Mobile Games</button>
                     <button onClick={() => setView('all-giveaways')} className="text-gray-300 hover:text-cyan-400 transition-colors duration-300 font-semibold">Giveaways</button>
                 </nav>
             </div>

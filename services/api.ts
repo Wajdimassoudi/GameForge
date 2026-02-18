@@ -1,9 +1,10 @@
 
-import { Game, GameDetails, Giveaway } from '../types';
+import { Game, GameDetails, Giveaway, GithubSearchResponse } from '../types';
 
 // API base URLs
 const FREETOGAME_API_BASE = 'https://www.freetogame.com/api';
 const GAMERPOWER_API_BASE = 'https://www.gamerpower.com/api';
+const GITHUB_API_BASE = 'https://api.github.com';
 
 /**
  * Our own API proxy endpoint, running as a Vercel Serverless Function.
@@ -64,4 +65,14 @@ export const getGameDetails = (id: number): Promise<GameDetails> => {
 export const getGiveaways = (params: { [key:string]: string } = {}): Promise<Giveaway[]> => {
     const query = new URLSearchParams(params).toString();
     return fetchData<Giveaway[]>(`${GAMERPOWER_API_BASE}/giveaways?${query}`);
+};
+
+/**
+ * Fetches a list of open-source mobile games from the GitHub API.
+ * @param params An object of query parameters (e.g., { q: 'android game', sort: 'stars' }).
+ * @returns A promise that resolves to a GithubSearchResponse object.
+ */
+export const getMobileGames = (params: { [key:string]: string } = {}): Promise<GithubSearchResponse> => {
+    const query = new URLSearchParams(params).toString();
+    return fetchData<GithubSearchResponse>(`${GITHUB_API_BASE}/search/repositories?${query}`);
 };

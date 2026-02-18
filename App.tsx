@@ -1,10 +1,11 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
-import { Game, Giveaway } from './types';
-import { getGames, getGiveaways } from './services/api';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { Game, Giveaway, MobileGame } from './types';
+import { getGames, getGiveaways, getMobileGames } from './services/api';
 import Header from './components/Header';
 import GiveawayCarousel from './components/GiveawayCarousel';
 import GameCard from './components/GameCard';
+import MobileGameCard from './components/MobileGameCard';
 import GameDetailView from './components/GameDetailView';
 import Loading from './components/Loading';
 import Footer from './components/Footer';
@@ -13,7 +14,7 @@ import Pagination from './components/Pagination';
 /**
  * Defines the possible views (pages) in the application.
  */
-type View = 'home' | 'game-details' | 'all-games' | 'all-giveaways';
+type View = 'home' | 'game-details' | 'all-games' | 'all-giveaways' | 'mobile-games';
 
 /**
  * A reusable component to display an error message with an optional retry button.
@@ -69,6 +70,8 @@ const App: React.FC = () => {
                 return <GameListView onSelectGame={handleSelectGame} />;
             case 'all-giveaways':
                 return <GiveawayListView />;
+            case 'mobile-games':
+                return <MobileGameListView />;
             case 'home':
             default:
                 return <HomePage onSelectGame={handleSelectGame} setView={setView}/>;
@@ -116,6 +119,7 @@ interface HomePageProps {
 const HomePage: React.FC<HomePageProps> = ({ onSelectGame, setView }) => {
     const [games, setGames] = useState<Game[]>([]);
     const [giveaways, setGiveaways] = useState<Giveaway[]>([]);
+    const [mobileGames, setMobileGames] = useState<MobileGame[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
@@ -123,12 +127,14 @@ const HomePage: React.FC<HomePageProps> = ({ onSelectGame, setView }) => {
         setLoading(true);
         setError(null);
         try {
-            const [gamesData, giveawaysData] = await Promise.all([
+            const [gamesData, giveawaysData, mobileGamesData] = await Promise.all([
                 getGames({ 'sort-by': 'popularity' }),
-                getGiveaways({ type: 'game' })
+                getGiveaways({ type: 'game' }),
+                getMobileGames({ q: 'android+game+in:name,description+sort:stars', page: '1', per_page: '8' })
             ]);
-            setGames(gamesData.slice(0, 12));
+            setGames(gamesData.slice(0, 8)); // 2 rows
             setGiveaways(giveawaysData.slice(0, 10));
+            setMobileGames(mobileGamesData.items);
         } catch (error) {
             console.error("Error fetching homepage data:", error);
             setError(error instanceof Error ? error.message : "An unknown error occurred while loading homepage data.");
@@ -152,10 +158,26 @@ const HomePage: React.FC<HomePageProps> = ({ onSelectGame, setView }) => {
                 <h2 className="text-3xl font-bold mb-6 text-cyan-400">Featured Giveaways</h2>
                 <GiveawayCarousel giveaways={giveaways} />
             </section>
+            
+            <section className="mb-16">
+                 <div className="flex justify-between items-center mb-6">
+                    <h2 className="text-3xl font-bold text-cyan-400">Featured Mobile Games</h2>
+                    <button 
+                        onClick={() => setView('mobile-games')}
+                        className="bg-cyan-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-cyan-600 transition-colors duration-300">
+                        View All
+                    </button>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                    {mobileGames.map(game => (
+                        <MobileGameCard key={game.id} game={game} />
+                    ))}
+                </div>
+            </section>
 
             <section>
                  <div className="flex justify-between items-center mb-6">
-                    <h2 className="text-3xl font-bold text-cyan-400">Popular Games</h2>
+                    <h2 className="text-3xl font-bold text-cyan-400">Popular PC & Browser Games</h2>
                     <button 
                         onClick={() => setView('all-games')}
                         className="bg-cyan-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-cyan-600 transition-colors duration-300">
@@ -219,7 +241,7 @@ const GameListView: React.FC<{ onSelectGame: (id: number) => void }> = ({ onSele
 
     return (
         <div>
-            <h1 className="text-4xl font-bold mb-8 text-cyan-400">All Free-to-Play Games</h1>
+            <h1 className="text-4xl font-bold mb-8 text-cyan-400">All PC & Browser Games</h1>
             <div className="bg-gray-800/50 border border-gray-700/50 p-4 rounded-lg mb-8 flex flex-wrap gap-4 items-center">
                 <select value={platform} onChange={(e) => setPlatform(e.target.value)} className="bg-gray-700 text-white p-2 rounded border border-gray-600 focus:ring-2 focus:ring-cyan-500 focus:outline-none">
                     <option value="all">All Platforms</option>
@@ -254,6 +276,91 @@ const GameListView: React.FC<{ onSelectGame: (id: number) => void }> = ({ onSele
         </div>
     );
 };
+
+/**
+ * Renders a searchable and paginated list of open-source mobile games.
+ */
+const MobileGameListView: React.FC = () => {
+    const [games, setGames] = useState<MobileGame[]>([]);
+    const [totalCount, setTotalCount] = useState(0);
+    const [loading, setLoading] = useState(true);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [inputValue, setInputValue] = useState('');
+    const [currentPage, setCurrentPage] = useState(1);
+    const [error, setError] = useState<string | null>(null);
+    const gamesPerPage = 12;
+    const debounceTimeoutRef = useRef<number | null>(null);
+
+    const fetchMobileGamesData = useCallback(async (page: number, currentSearchTerm: string) => {
+        setLoading(true);
+        setError(null);
+        try {
+            const query = (currentSearchTerm.trim() ? `${currentSearchTerm.trim()} ` : '') + 'android game in:name,description';
+            const params = {
+                q: query,
+                sort: 'stars',
+                page: page.toString(),
+                per_page: gamesPerPage.toString(),
+            };
+            const gamesData = await getMobileGames(params);
+            setGames(gamesData.items);
+            setTotalCount(gamesData.total_count > 1000 ? 1000 : gamesData.total_count); // GitHub API limit
+        } catch (error) {
+            console.error("Error fetching mobile games:", error);
+            setGames([]);
+            setError(error instanceof Error ? error.message : "An unknown error occurred while loading mobile games.");
+        } finally {
+            setLoading(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        fetchMobileGamesData(currentPage, searchTerm);
+    }, [currentPage, searchTerm, fetchMobileGamesData]);
+
+    const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setInputValue(e.target.value);
+        if (debounceTimeoutRef.current) {
+            clearTimeout(debounceTimeoutRef.current);
+        }
+        debounceTimeoutRef.current = window.setTimeout(() => {
+            setSearchTerm(e.target.value);
+            setCurrentPage(1); // Reset to first page on new search
+        }, 500); // 500ms debounce delay
+    };
+
+    const totalPages = Math.ceil(totalCount / gamesPerPage);
+
+    return (
+        <div>
+            <h1 className="text-4xl font-bold mb-8 text-cyan-400">Open Source Mobile Games</h1>
+            <div className="bg-gray-800/50 border border-gray-700/50 p-4 rounded-lg mb-8 flex gap-4 items-center">
+                <input
+                    type="text"
+                    value={inputValue}
+                    onChange={handleSearchChange}
+                    placeholder="Search for games (e.g., puzzle, libgdx)..."
+                    className="w-full bg-gray-700 text-white p-2 rounded border border-gray-600 focus:ring-2 focus:ring-cyan-500 focus:outline-none"
+                />
+            </div>
+            {loading ? <Loading /> : error ? (
+                <ErrorMessage message={error} onRetry={() => fetchMobileGamesData(currentPage, searchTerm)} />
+            ) : (
+                <>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                        {games.length > 0 ? games.map(game => (
+                            <MobileGameCard key={game.id} game={game} />
+                        )) : (
+                            <p className="col-span-full text-center text-gray-400 py-10">No games found. Try a different search term.</p>
+                        )}
+                    </div>
+                    <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
+                </>
+            )}
+        </div>
+    );
+};
+
 
 /**
  * Displays a list of all current game giveaways.
