@@ -83,3 +83,9 @@ export interface GithubSearchResponse {
     incomplete_results: boolean;
     items: MobileGame[];
 }
+
+/**
+ * A union type representing a single search result item.
+ * This allows combining PC games and mobile games into one list for the search results.
+ */
+export type SearchResult = (Game & { resultType: 'pc' }) | (MobileGame & { resultType: 'mobile' });

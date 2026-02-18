@@ -42,7 +42,7 @@ const App: React.FC = () => {
     const [selectedGameId, setSelectedGameId] = useState<number | null>(null);
 
     /**
-     * Handles clicking on a game card, switching to the detail view.
+     * Handles clicking on a game card or search result, switching to the detail view.
      * @param id The ID of the selected game.
      */
     const handleSelectGame = (id: number) => {
@@ -80,7 +80,7 @@ const App: React.FC = () => {
 
     return (
         <div className="min-h-screen bg-transparent font-sans">
-            <Header setView={setView} />
+            <Header setView={setView} onSelectGame={handleSelectGame} />
             <main className="container mx-auto px-4 py-8">
                 <div key={view} className="animate-fade-in">
                     {renderView()}
