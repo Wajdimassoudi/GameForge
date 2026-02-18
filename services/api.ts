@@ -6,32 +6,33 @@ const FREETOGAME_API_BASE = 'https://www.freetogame.com/api';
 const GAMERPOWER_API_BASE = 'https://www.gamerpower.com/api';
 
 /**
- * A reliable CORS proxy to bypass browser restrictions when calling APIs directly from the client.
- * NOTE: For a production application, it is highly recommended to build your own server-side proxy
- * for better performance, security, and to avoid reliance on third-party services.
+ * Our own API proxy endpoint, running as a Vercel Serverless Function.
+ * This is the robust solution to avoid CORS issues on deployed environments.
  */
-const PROXY_URL = 'https://corsproxy.io/?';
+const API_PROXY = '/api/proxy';
 
 
 /**
- * A generic data fetching function to handle API requests.
- * It uses a proxy to prevent CORS errors and includes error handling.
- * @param url The API endpoint to fetch data from.
+ * A generic data fetching function to handle API requests via our own proxy.
+ * This function now sends requests to our serverless function, which then fetches the data.
+ * @param url The target API endpoint to fetch data from.
  * @returns A promise that resolves to the fetched data.
  */
 const fetchData = async <T,>(url: string): Promise<T> => {
     try {
-        // This proxy works by simply prepending its URL to the target URL.
-        const response = await fetch(`${PROXY_URL}${url}`);
+        // We pass the target URL as a query parameter to our proxy.
+        const proxyUrl = `${API_PROXY}?url=${encodeURIComponent(url)}`;
+        const response = await fetch(proxyUrl);
         
         if (!response.ok) {
-            // If the proxy or the API server returns an error, we throw an error.
-            throw new Error(`HTTP error! status: ${response.status}`);
+            // If our proxy returns an error, we try to parse the message it provides.
+            const errorData = await response.json().catch(() => ({ message: `HTTP error! status: ${response.status}` }));
+            throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
         }
         return await response.json() as T;
     } catch (error) {
-        console.error("API call failed:", url, error);
-        // Re-throw the error to be handled by the calling component.
+        console.error("API call failed via proxy:", url, error);
+        // Re-throw the refined error to be handled by the calling component.
         throw error;
     }
 };
@@ -41,7 +42,7 @@ const fetchData = async <T,>(url: string): Promise<T> => {
  * @param params An object of query parameters (e.g., { platform: 'pc', 'sort-by': 'popularity' }).
  * @returns A promise that resolves to an array of Game objects.
  */
-export const getGames = (params: { [key: string]: string } = {}): Promise<Game[]> => {
+export const getGames = (params: { [key:string]: string } = {}): Promise<Game[]> => {
     const query = new URLSearchParams(params).toString();
     return fetchData<Game[]>(`${FREETOGAME_API_BASE}/games?${query}`);
 };
@@ -60,7 +61,7 @@ export const getGameDetails = (id: number): Promise<GameDetails> => {
  * @param params An object of query parameters (e.g., { type: 'game' }).
  * @returns A promise that resolves to an array of Giveaway objects.
  */
-export const getGiveaways = (params: { [key: string]: string } = {}): Promise<Giveaway[]> => {
+export const getGiveaways = (params: { [key:string]: string } = {}): Promise<Giveaway[]> => {
     const query = new URLSearchParams(params).toString();
     return fetchData<Giveaway[]>(`${GAMERPOWER_API_BASE}/giveaways?${query}`);
 };

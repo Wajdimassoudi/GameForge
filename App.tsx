@@ -119,30 +119,30 @@ const HomePage: React.FC<HomePageProps> = ({ onSelectGame, setView }) => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
-    useEffect(() => {
-        const fetchHomePageData = async () => {
-            setLoading(true);
-            setError(null);
-            try {
-                const [gamesData, giveawaysData] = await Promise.all([
-                    getGames({ 'sort-by': 'popularity' }),
-                    getGiveaways({ type: 'game' })
-                ]);
-                setGames(gamesData.slice(0, 12));
-                setGiveaways(giveawaysData.slice(0, 10));
-            } catch (error) {
-                console.error("Error fetching homepage data:", error);
-                setError("Failed to load homepage data. Please try refreshing the page.");
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        fetchHomePageData();
+    const fetchHomePageData = useCallback(async () => {
+        setLoading(true);
+        setError(null);
+        try {
+            const [gamesData, giveawaysData] = await Promise.all([
+                getGames({ 'sort-by': 'popularity' }),
+                getGiveaways({ type: 'game' })
+            ]);
+            setGames(gamesData.slice(0, 12));
+            setGiveaways(giveawaysData.slice(0, 10));
+        } catch (error) {
+            console.error("Error fetching homepage data:", error);
+            setError(error instanceof Error ? error.message : "An unknown error occurred while loading homepage data.");
+        } finally {
+            setLoading(false);
+        }
     }, []);
 
+    useEffect(() => {
+        fetchHomePageData();
+    }, [fetchHomePageData]);
+
     if (loading) return <Loading />;
-    if (error) return <ErrorMessage message={error} />;
+    if (error) return <ErrorMessage message={error} onRetry={fetchHomePageData} />;
 
 
     return (
@@ -199,7 +199,7 @@ const GameListView: React.FC<{ onSelectGame: (id: number) => void }> = ({ onSele
         } catch (error) {
             console.error("Error fetching games:", error);
             setAllGames([]);
-            setError("Failed to load games. The API might be down or your connection is unstable.");
+            setError(error instanceof Error ? error.message : "An unknown error occurred while loading games.");
         } finally {
             setLoading(false);
         }
@@ -271,7 +271,7 @@ const GiveawayListView: React.FC = () => {
             setGiveaways(giveawaysData);
         } catch (error) {
             console.error("Error fetching giveaways:", error);
-            setError("Failed to load giveaways. The API might be down or your connection is unstable.");
+            setError(error instanceof Error ? error.message : "An unknown error occurred while loading giveaways.");
         } finally {
             setLoading(false);
         }
