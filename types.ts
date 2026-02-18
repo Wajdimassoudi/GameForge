@@ -89,3 +89,27 @@ export interface GithubSearchResponse {
  * This allows combining PC games and mobile games into one list for the search results.
  */
 export type SearchResult = (Game & { resultType: 'pc' }) | (MobileGame & { resultType: 'mobile' });
+
+/**
+ * Represents a single game from our new aggregated /api/games endpoint.
+ */
+export interface AggregatedGame {
+    id: string;
+    title: string;
+    description: string;
+    image: string | null;
+    play_url: string | null;
+    apk_url: string | null;
+    store_url: string | null;
+    source: 'FreeToGame' | 'F-Droid' | 'GitHub';
+    platforms: string[];
+}
+
+/**
+ * Represents the structure of the response from our new /api/games endpoint.
+ */
+export interface AggregatedGamesResponse {
+    success: boolean;
+    count: number;
+    games: AggregatedGame[];
+}

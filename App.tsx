@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Game, Giveaway, MobileGame } from './types';
-import { getGames, getGiveaways, getMobileGames } from './services/api';
+import { Game, Giveaway, MobileGame, AggregatedGame } from './types';
+import { getGames, getGiveaways, getMobileGames, getAggregatedGames } from './services/api';
 import Header from './components/Header';
 import GiveawayCarousel from './components/GiveawayCarousel';
 import GameCard from './components/GameCard';
@@ -10,6 +10,7 @@ import GameDetailView from './components/GameDetailView';
 import Loading from './components/Loading';
 import Footer from './components/Footer';
 import Pagination from './components/Pagination';
+import AggregatedGameCard from './components/AggregatedGameCard';
 
 /**
  * Defines the possible views (pages) in the application.
@@ -114,12 +115,11 @@ interface HomePageProps {
 }
 
 /**
- * The main homepage component, displaying a hero, featured giveaways, and popular games.
+ * The main homepage component, now fetching from the new unified /api/games endpoint.
  */
 const HomePage: React.FC<HomePageProps> = ({ onSelectGame, setView }) => {
-    const [games, setGames] = useState<Game[]>([]);
+    const [aggregatedGames, setAggregatedGames] = useState<AggregatedGame[]>([]);
     const [giveaways, setGiveaways] = useState<Giveaway[]>([]);
-    const [mobileGames, setMobileGames] = useState<MobileGame[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
@@ -127,14 +127,20 @@ const HomePage: React.FC<HomePageProps> = ({ onSelectGame, setView }) => {
         setLoading(true);
         setError(null);
         try {
-            const [gamesData, giveawaysData, mobileGamesData] = await Promise.all([
-                getGames({ 'sort-by': 'popularity' }),
+            // Fetch giveaways and aggregated games in parallel
+            const [giveawaysData, aggregatedGamesResponse] = await Promise.all([
                 getGiveaways({ type: 'game' }),
-                getMobileGames({ q: 'android+game+in:name,description+sort:stars', page: '1', per_page: '8' })
+                getAggregatedGames()
             ]);
-            setGames(gamesData.slice(0, 8)); // 2 rows
+            
             setGiveaways(giveawaysData.slice(0, 10));
-            setMobileGames(mobileGamesData.items);
+
+            if(aggregatedGamesResponse.success) {
+                setAggregatedGames(aggregatedGamesResponse.games);
+            } else {
+                throw new Error("Failed to load games from the new API.");
+            }
+
         } catch (error) {
             console.error("Error fetching homepage data:", error);
             setError(error instanceof Error ? error.message : "An unknown error occurred while loading homepage data.");
@@ -150,6 +156,9 @@ const HomePage: React.FC<HomePageProps> = ({ onSelectGame, setView }) => {
     if (loading) return <Loading />;
     if (error) return <ErrorMessage message={error} onRetry={fetchHomePageData} />;
 
+    // Filter aggregated games for different sections on the homepage
+    const mobileGames = aggregatedGames.filter(g => g.source === 'F-Droid' || g.source === 'GitHub').slice(0, 8);
+    const pcGames = aggregatedGames.filter(g => g.source === 'FreeToGame').slice(0, 8);
 
     return (
         <>
@@ -159,37 +168,41 @@ const HomePage: React.FC<HomePageProps> = ({ onSelectGame, setView }) => {
                 <GiveawayCarousel giveaways={giveaways} />
             </section>
             
-            <section className="mb-16">
-                 <div className="flex justify-between items-center mb-6">
-                    <h2 className="text-3xl font-bold text-cyan-400">Featured Mobile Games</h2>
-                    <button 
-                        onClick={() => setView('mobile-games')}
-                        className="bg-cyan-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-cyan-600 transition-colors duration-300">
-                        View All
-                    </button>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                    {mobileGames.map(game => (
-                        <MobileGameCard key={game.id} game={game} />
-                    ))}
-                </div>
-            </section>
+            {mobileGames.length > 0 && (
+                <section className="mb-16">
+                    <div className="flex justify-between items-center mb-6">
+                        <h2 className="text-3xl font-bold text-cyan-400">Featured Mobile Games</h2>
+                        <button 
+                            onClick={() => setView('mobile-games')}
+                            className="bg-cyan-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-cyan-600 transition-colors duration-300">
+                            View More
+                        </button>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                        {mobileGames.map(game => (
+                            <AggregatedGameCard key={game.id} game={game} />
+                        ))}
+                    </div>
+                </section>
+            )}
 
-            <section>
-                 <div className="flex justify-between items-center mb-6">
-                    <h2 className="text-3xl font-bold text-cyan-400">Popular PC & Browser Games</h2>
-                    <button 
-                        onClick={() => setView('all-games')}
-                        className="bg-cyan-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-cyan-600 transition-colors duration-300">
-                        View All
-                    </button>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                    {games.map(game => (
-                        <GameCard key={game.id} game={game} onSelectGame={onSelectGame} />
-                    ))}
-                </div>
-            </section>
+            {pcGames.length > 0 && (
+                <section>
+                    <div className="flex justify-between items-center mb-6">
+                        <h2 className="text-3xl font-bold text-cyan-400">Popular PC & Browser Games</h2>
+                        <button 
+                            onClick={() => setView('all-games')}
+                            className="bg-cyan-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-cyan-600 transition-colors duration-300">
+                            View More
+                        </button>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                        {pcGames.map(game => (
+                            <AggregatedGameCard key={game.id} game={game} />
+                        ))}
+                    </div>
+                </section>
+            )}
         </>
     );
 };

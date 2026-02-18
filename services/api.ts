@@ -1,5 +1,5 @@
 
-import { Game, GameDetails, Giveaway, GithubSearchResponse } from '../types';
+import { Game, GameDetails, Giveaway, GithubSearchResponse, AggregatedGamesResponse } from '../types';
 
 // API base URLs
 const FREETOGAME_API_BASE = 'https://www.freetogame.com/api';
@@ -39,6 +39,26 @@ const fetchData = async <T,>(url: string): Promise<T> => {
 };
 
 /**
+ * Fetches data from our own internal API endpoints.
+ * @param url The internal API endpoint (e.g., /api/games).
+ * @returns A promise that resolves to the fetched data.
+ */
+const fetchInternalData = async <T,>(url: string): Promise<T> => {
+    try {
+        const response = await fetch(url);
+         if (!response.ok) {
+            const errorData = await response.json().catch(() => ({ message: `HTTP error! status: ${response.status}` }));
+            throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+        }
+        return await response.json() as T;
+    } catch (error) {
+        console.error("Internal API call failed:", url, error);
+        throw error;
+    }
+};
+
+
+/**
  * Fetches a list of games from the FreeToGame API.
  * @param params An object of query parameters (e.g., { platform: 'pc', 'sort-by': 'popularity' }).
  * @returns A promise that resolves to an array of Game objects.
@@ -75,4 +95,12 @@ export const getGiveaways = (params: { [key:string]: string } = {}): Promise<Giv
 export const getMobileGames = (params: { [key:string]: string } = {}): Promise<GithubSearchResponse> => {
     const query = new URLSearchParams(params).toString();
     return fetchData<GithubSearchResponse>(`${GITHUB_API_BASE}/search/repositories?${query}`);
+};
+
+/**
+ * Fetches the aggregated list of games from our own backend API.
+ * @returns A promise that resolves to an AggregatedGamesResponse object.
+ */
+export const getAggregatedGames = (): Promise<AggregatedGamesResponse> => {
+    return fetchInternalData<AggregatedGamesResponse>('/api/games');
 };

@@ -4,7 +4,8 @@
 // without running into browser security restrictions (CORS).
 // Vercel automatically creates an API endpoint at `/api/proxy` from this file.
 
-export default async function handler(request, response) {
+// Using CommonJS export for compatibility with the Vercel Node.js environment.
+module.exports = async (request, response) => {
   // Extract the target API URL from the query parameters.
   // e.g., /api/proxy?url=https://www.freetogame.com/api/games
   const targetUrl = request.query.url;
@@ -15,7 +16,7 @@ export default async function handler(request, response) {
   }
 
   try {
-    // Make a request to the target API.
+    // Make a request to the target API. `fetch` is globally available in Vercel's Node.js 18+ runtime.
     const apiResponse = await fetch(targetUrl, {
         headers: {
             'Content-Type': 'application/json',
